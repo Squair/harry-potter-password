@@ -77,7 +77,7 @@ const checkAndRequestMic = async () => {
   // we attempt to get the stream, which will trigger the prompt if needed.
   microphoneStatus.value = 'pending';
   const granted = await requestMicrophoneAccess();
-  this.microphoneStatus = granted ? 'granted' : 'denied';
+  microphoneStatus.value = granted ? 'granted' : 'denied';
 }
 
 // A simple function to request access
