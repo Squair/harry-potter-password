@@ -4,11 +4,11 @@
     <button v-if="microphoneStatus == 'granted' && !shouldPlay" @click="shouldPlay = true">
       Play
     </button>
-    <div v-else-if="shouldPlay" class="video-container">
-      <video autoplay ref="videoPlayer" @ended="listenToPassword" :src="videoSource" :poster="'test'"></video>
+    <div v-else-if="shouldPlay && !secondVidFinished" class="video-container">
+      <video autoplay ref="videoPlayer" @ended="handleVideoEnd" :src="videoSource" :poster="'test'"></video>
     </div>
 
-    <Present v-if="passwordCorrect" />
+    <Present v-if="secondVidFinished" />
 
   </div>
 </template>
@@ -28,11 +28,18 @@ const endVideoSource = `${basePath}/end.mp4`;
 const videoSource = ref(startVideoSource);
 const passwordCorrect = ref(false);
 const shouldPlay = ref(false);
+const secondVidFinished = ref(false)
 
 const microphoneStatus = ref('idle');
 
-const listenToPassword = async () => {
-  start()
+const handleVideoEnd = async () => {
+  // First vid
+  if (!passwordCorrect.value) {
+    start()
+    return;
+  }
+
+  secondVidFinished.value = true
 }
 
 const checkPassword = (result) => {
@@ -40,8 +47,15 @@ const checkPassword = (result) => {
 
   if (fuzzyMatch.some(sub => result.value.includes(sub))) {
     passwordCorrect.value = true;
-    videoSource.value = endVideoSource;
     stop();
+
+    videoSource.value = endVideoSource;
+    const player = this.$refs.videoPlayer;
+    player.load();
+    player.play().catch(error => {
+      // Autoplay may be blocked by the browser, so handle the promise rejection.
+      console.log('Autoplay prevented:', error);
+    });
   }
 }
 
@@ -54,11 +68,11 @@ const getPermissionStatus = async () => {
     // Permissions API not supported
     return null;
   }
-  
+
   try {
     const result = await navigator.permissions.query({ name: 'microphone' });
-    return result.state; 
-    
+    return result.state;
+
   } catch (error) {
     console.error("Error querying microphone permissions:", error);
     return null;
