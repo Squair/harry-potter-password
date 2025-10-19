@@ -3,9 +3,8 @@
     <button v-if="microphoneStatus == 'granted' && !shouldPlay" @click="shouldPlay = true">
       Play
     </button>
-    <div v-else-if="shouldPlay && !secondVidFinished" class="video-container">
-      <video v-show="!passwordCorrect" autoplay ref="videoPlayer" @ended="toggleListening" :src="startVideoSource" :poster="'test'"></video>
-      <video preload="auto" v-show="passwordCorrect" :autoplay="passwordCorrect" ref="videoPlayer2" @ended="secondVidFinished = true" :src="endVideoSource" :poster="'test'"></video>
+    <div v-else-if="shouldPlay && !secondVidFinished" :class="{ 'video-container': true, 'is-swapping': isSwapping }">
+      <video @click="swapVideo" autoplay ref="videoPlayer" @ended="handleVideoEnd" :src="videoSource"></video>
     </div>
 
     <Present v-if="secondVidFinished" />
@@ -24,11 +23,40 @@ const basePath = import.meta.env.BASE_URL;
 const startVideoSource = `${basePath}/password-cut.mp4`;
 const endVideoSource = `${basePath}/end.mp4`;
 
+const videoSource = ref(startVideoSource);
 const passwordCorrect = ref(false);
 const shouldPlay = ref(false);
 const secondVidFinished = ref(false)
 
 const microphoneStatus = ref('idle');
+const endVideoObjectUrl = ref(null);
+const isSwapping = ref(false)
+
+const preloadEndVideo = async () => {
+  if (endVideoObjectUrl.value) return;
+
+  try {
+    const response = await fetch(endVideoSource);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch video: ${response.statusText}`);
+    }
+    const videoBlob = await response.blob();
+    endVideoObjectUrl.value = URL.createObjectURL(videoBlob);
+    console.log("End video successfully preloaded and ready.");
+
+  } catch (error) {
+    console.error("Error during video preload:", error);
+  }
+};
+
+const handleVideoEnd = async () => {
+  if (!passwordCorrect.value) {
+    toggleListening();
+    return;
+  }
+
+  secondVidFinished.value = true
+}
 
 const checkPassword = (result) => {
   const fuzzyMatch = ["kapoot", "kappa", "patric", "carpet", "draconus", "draconis"];
@@ -36,17 +64,19 @@ const checkPassword = (result) => {
   if (fuzzyMatch.some(sub => result.includes(sub))) {
     passwordCorrect.value = true;
     toggleListening();
-    this.$nextTick(() => {
-      this.$refs.videoPlayer2.play().catch(error => {
-        // Handle potential errors (e.g., if a user interaction is still required)
-        console.error("Autoplay failed on preloaded video:", error);
-      });
-    });
+    swapVideo();
   }
+}
+
+const swapVideo = async () => {
+  videoSource.value = endVideoObjectUrl.value || endVideoSource;
+  const player = this.$refs.videoPlayer;
+  player.load();
 }
 
 onMounted(async () => {
   await checkAndRequestMic();
+  await preloadEndVideo()
 })
 
 const getPermissionStatus = async () => {
@@ -122,12 +152,20 @@ watch(note, () => {
   top: 0;
   left: 0;
   z-index: 10;
+  background-color: black;
 }
 
 video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.video-container.is-swapping video {
+  /* Hide the video element entirely during the swap */
+  opacity: 0;
+  transition: opacity 0s;
+  /* Ensure no transition delay */
 }
 
 .container {
