@@ -1,10 +1,7 @@
 <template>
   <p v-if="!isSupported">This browser won't work, please try another</p>
   <div v-else>
-    <button v-if="microphoneAccess !== 'granted'" @click="microphonePrompt">
-      Enable microphone use
-    </button>
-    <button v-else-if="microphoneAccess == 'granted' && !shouldPlay" @click="shouldPlay = true">
+    <button v-if="microphoneStatus == 'granted' && !shouldPlay" @click="shouldPlay = true">
       Play
     </button>
     <div v-else-if="shouldPlay" class="video-container">
@@ -17,9 +14,8 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useSpeechRecognition } from '@vueuse/core';
-import { usePermission } from '@vueuse/core'
 import Present from './Present.vue';
 
 const { result, start, stop, isSupported } = useSpeechRecognition();
@@ -31,7 +27,7 @@ const videoSource = ref(startVideoSource);
 const passwordCorrect = ref(false);
 const shouldPlay = ref(false);
 
-const microphoneAccess = usePermission('microphone')
+const microphoneStatus = ref('idle');
 
 const listenToPassword = async () => {
   start()
@@ -47,9 +43,61 @@ const checkPassword = (result) => {
   }
 }
 
-const microphonePrompt = () => {
-  start();
-  stop();
+onMounted(async () => {
+  await checkAndRequestMic();
+})
+
+const getPermissionStatus = async () => {
+  if (!navigator.permissions) {
+    // Permissions API not supported
+    return null;
+  }
+  
+  try {
+    const result = await navigator.permissions.query({ name: 'microphone' });
+    return result.state; 
+    
+  } catch (error) {
+    console.error("Error querying microphone permissions:", error);
+    return null;
+  }
+}
+
+const checkAndRequestMic = async () => {
+  const status = await getPermissionStatus();
+
+  if (status === 'granted') {
+    // Permission is already granted, proceed without prompting
+    microphoneStatus.value = 'granted';
+    console.log("Permission already granted.");
+    return;
+  }
+
+  // If status is 'prompt' or 'denied' (or if Permissions API is not supported), 
+  // we attempt to get the stream, which will trigger the prompt if needed.
+  microphoneStatus.value = 'pending';
+  const granted = await requestMicrophoneAccess();
+  this.microphoneStatus = granted ? 'granted' : 'denied';
+}
+
+// A simple function to request access
+const requestMicrophoneAccess = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(track => track.stop());
+    return true; // Return true for success
+
+  } catch (error) {
+    console.error("Microphone access denied or error:", error.name, error.message);
+
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      alert("Microphone permission was denied. Please allow it in your browser settings.");
+    } else if (error.name === 'NotFoundError') {
+      alert("No microphone found on your device.");
+    }
+
+    return false; // Return false for failure
+  }
 }
 
 watch(result, (newResult) => {
