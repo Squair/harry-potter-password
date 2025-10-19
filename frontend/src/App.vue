@@ -6,6 +6,7 @@
     </button>
     <div v-else-if="shouldPlay && !secondVidFinished" class="video-container">
       <video autoplay ref="videoPlayer" @ended="handleVideoEnd" :src="videoSource" :poster="'test'"></video>
+      <h1>Words: {{ words }}</h1>
     </div>
 
     <Present v-if="secondVidFinished" />
@@ -19,7 +20,9 @@ import { useSpeechRecognition } from '@vueuse/core';
 import Present from './Present.vue';
 
 
-const { result, start, stop, isSupported } = useSpeechRecognition();
+const { result, start, stop, isSupported } = useSpeechRecognition({
+  continuous: true,
+})
 
 const basePath = import.meta.env.BASE_URL;
 const startVideoSource = `${basePath}/password-cut.mp4`;
@@ -31,6 +34,8 @@ const shouldPlay = ref(false);
 const secondVidFinished = ref(false)
 
 const microphoneStatus = ref('idle');
+const words = ref('')
+
 
 const handleVideoEnd = async () => {
   // First vid
@@ -116,8 +121,11 @@ const requestMicrophoneAccess = async () => {
   }
 }
 
-watch(result, (newResult) => {
-  checkPassword(newResult)
+watch(result, () => {
+  console.log(result.value);
+  
+  words.value = result.value
+  checkPassword(result.value.toLowerCase())
 });
 
 </script>
@@ -128,6 +136,7 @@ watch(result, (newResult) => {
   height: 100vh;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   position: fixed;
