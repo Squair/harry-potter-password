@@ -18,10 +18,12 @@ import { onMounted, ref, watch } from 'vue';
 import { useSpeechRecognition } from '@vueuse/core';
 import Present from './Present.vue';
 
+
 const { result, start, stop, isSupported } = useSpeechRecognition();
 
-const startVideoSource = '/password-cut.mp4';
-const endVideoSource = '/end.mp4';
+const basePath = import.meta.env.BASE_URL;
+const startVideoSource = `${basePath}/password-cut.mp4`;
+const endVideoSource = `${basePath}/end.mp4`;
 
 const videoSource = ref(startVideoSource);
 const passwordCorrect = ref(false);
