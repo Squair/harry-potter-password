@@ -1,12 +1,11 @@
 <template>
-  <p v-if="!isSupported">This browser won't work, please try another</p>
-  <div v-else>
+  <div>
     <button v-if="microphoneStatus == 'granted' && !shouldPlay" @click="shouldPlay = true">
       Play
     </button>
     <div v-else-if="shouldPlay && !secondVidFinished" class="video-container">
       <video autoplay ref="videoPlayer" @ended="handleVideoEnd" :src="videoSource" :poster="'test'"></video>
-      <h1>Words: {{ words }}</h1>
+      <h1>Words: {{ note }}</h1>
     </div>
 
     <Present v-if="secondVidFinished" />
@@ -16,13 +15,11 @@
 
 <script setup>
 import { onMounted, ref, watch } from 'vue';
-import { useSpeechRecognition } from '@vueuse/core';
 import Present from './Present.vue';
+import useSpeechRecognition from './useSpeechRecognition';
 
+const { toggleListening, note, error } = useSpeechRecognition();
 
-const { result, start, stop, isSupported } = useSpeechRecognition({
-  continuous: true,
-})
 
 const basePath = import.meta.env.BASE_URL;
 const startVideoSource = `${basePath}/password-cut.mp4`;
@@ -34,13 +31,11 @@ const shouldPlay = ref(false);
 const secondVidFinished = ref(false)
 
 const microphoneStatus = ref('idle');
-const words = ref('')
-
 
 const handleVideoEnd = async () => {
   // First vid
   if (!passwordCorrect.value) {
-    start()
+    toggleListening();
     return;
   }
 
@@ -50,9 +45,9 @@ const handleVideoEnd = async () => {
 const checkPassword = (result) => {
   const fuzzyMatch = ["kapoot", "kappa", "patric", "carpet", "draconus", "draconis"];
 
-  if (fuzzyMatch.some(sub => result.value.includes(sub))) {
+  if (fuzzyMatch.some(sub => result.includes(sub))) {
     passwordCorrect.value = true;
-    stop();
+    toggleListening();
 
     videoSource.value = endVideoSource;
     const player = this.$refs.videoPlayer;
@@ -121,11 +116,9 @@ const requestMicrophoneAccess = async () => {
   }
 }
 
-watch(result, () => {
-  console.log(result.value);
-  
-  words.value = result.value
-  checkPassword(result.value.toLowerCase())
+watch(note, () => {
+  console.log(note.value);
+  checkPassword(note.value.toLowerCase())
 });
 
 </script>
