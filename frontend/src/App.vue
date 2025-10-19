@@ -4,8 +4,8 @@
       Play
     </button>
     <div v-else-if="shouldPlay && !secondVidFinished" class="video-container">
-      <video autoplay ref="videoPlayer" @ended="handleVideoEnd" :src="videoSource" :poster="'test'"></video>
-      <h1>Words: {{ note }}</h1>
+      <video v-show="!passwordCorrect" autoplay ref="videoPlayer" @ended="toggleListening" :src="startVideoSource" :poster="'test'"></video>
+      <video v-show="passwordCorrect" :autoplay="passwordCorrect" ref="videoPlayer" @ended="secondVidFinished = true" :src="endVideoSource" :poster="'test'"></video>
     </div>
 
     <Present v-if="secondVidFinished" />
@@ -18,29 +18,17 @@ import { onMounted, ref, watch } from 'vue';
 import Present from './Present.vue';
 import useSpeechRecognition from './useSpeechRecognition';
 
-const { toggleListening, note, error } = useSpeechRecognition();
-
+const { toggleListening, note } = useSpeechRecognition();
 
 const basePath = import.meta.env.BASE_URL;
 const startVideoSource = `${basePath}/password-cut.mp4`;
 const endVideoSource = `${basePath}/end.mp4`;
 
-const videoSource = ref(startVideoSource);
 const passwordCorrect = ref(false);
 const shouldPlay = ref(false);
 const secondVidFinished = ref(false)
 
 const microphoneStatus = ref('idle');
-
-const handleVideoEnd = async () => {
-  // First vid
-  if (!passwordCorrect.value) {
-    toggleListening();
-    return;
-  }
-
-  secondVidFinished.value = true
-}
 
 const checkPassword = (result) => {
   const fuzzyMatch = ["kapoot", "kappa", "patric", "carpet", "draconus", "draconis"];
@@ -48,14 +36,6 @@ const checkPassword = (result) => {
   if (fuzzyMatch.some(sub => result.includes(sub))) {
     passwordCorrect.value = true;
     toggleListening();
-
-    videoSource.value = endVideoSource;
-    const player = this.$refs.videoPlayer;
-    player.load();
-    player.play().catch(error => {
-      // Autoplay may be blocked by the browser, so handle the promise rejection.
-      console.log('Autoplay prevented:', error);
-    });
   }
 }
 
