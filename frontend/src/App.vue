@@ -5,7 +5,7 @@
     </button>
     <div v-else-if="shouldPlay && !secondVidFinished" class="video-container">
       <video v-show="!passwordCorrect" autoplay ref="videoPlayer" @ended="toggleListening" :src="startVideoSource" :poster="'test'"></video>
-      <video v-show="passwordCorrect" :autoplay="passwordCorrect" ref="videoPlayer" @ended="secondVidFinished = true" :src="endVideoSource" :poster="'test'"></video>
+      <video preload="auto" v-show="passwordCorrect" :autoplay="passwordCorrect" ref="videoPlayer2" @ended="secondVidFinished = true" :src="endVideoSource" :poster="'test'"></video>
     </div>
 
     <Present v-if="secondVidFinished" />
@@ -36,6 +36,12 @@ const checkPassword = (result) => {
   if (fuzzyMatch.some(sub => result.includes(sub))) {
     passwordCorrect.value = true;
     toggleListening();
+    this.$nextTick(() => {
+      this.$refs.videoPlayer2.play().catch(error => {
+        // Handle potential errors (e.g., if a user interaction is still required)
+        console.error("Autoplay failed on preloaded video:", error);
+      });
+    });
   }
 }
 
